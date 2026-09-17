@@ -98,6 +98,7 @@ Install the agent into the target cluster:
 
 ```bash
 helm install navyr-agent oci://ghcr.io/navyr-io/charts/navyr-agent --version 0.1.0 \
+  --set image.tag=0.1.0 \
   --set agent.orchestratorUrl=ws://YOUR_HOST:8083 \
   --set agent.token=<TOKEN_FROM_UI> \
   --set agent.orgId=<ORG_ID> \
@@ -188,8 +189,14 @@ For a Kubernetes install, use the published chart:
 
 ```bash
 helm install navyr oci://ghcr.io/navyr-io/charts/navyr --version 0.1.0 \
-  --namespace navyr --create-namespace
+  --namespace navyr --create-namespace \
+  --set secrets.clusterCredentialEncryptionKey=$(openssl rand -hex 32) \
+  --set secrets.jwtSecret=$(openssl rand -hex 32)
 ```
+
+The chart **refuses to install with the example secrets** and tells you which one
+is still a placeholder. For a throwaway local install you can accept the
+defaults deliberately with `--set secrets.allowInsecureDefaults=true`.
 
 ## What this repository is, and is not
 
