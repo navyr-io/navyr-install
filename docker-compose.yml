@@ -1,0 +1,211 @@
+# Os nomes de container são deixados a cargo do Compose, que os prefixa com o
+# nome do projeto (-p). Nomes fixos impediam rodar duas instâncias e colidiam
+# com qualquer outra stack que usasse os mesmos nomes.
+services:
+
+  # --- DATABASE ---
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ${NAVYR_POSTGRES_USER:-navyr}
+      POSTGRES_PASSWORD: ${NAVYR_POSTGRES_PASSWORD:?set NAVYR_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${NAVYR_POSTGRES_DB:-navyr}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${NAVYR_POSTGRES_USER:-navyr} -d ${NAVYR_POSTGRES_DB:-navyr}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    networks:
+      - navyr
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - navyr
+
+  # --- SERVICES ---
+  auth:
+    image: ghcr.io/navyr-io/navyr-auth:${NAVYR_VERSION:-latest}
+    environment:
+      PORT: 8081
+      DATABASE_URL: postgres://${NAVYR_POSTGRES_USER:-navyr}:${NAVYR_POSTGRES_PASSWORD:?set NAVYR_POSTGRES_PASSWORD}@db:5432/${NAVYR_POSTGRES_DB:-navyr}?sslmode=disable
+      JWT_SECRET: ${NAVYR_JWT_SECRET:?set NAVYR_JWT_SECRET}
+      INTERNAL_CONTEXT_SIGNING_SECRET: ${NAVYR_INTERNAL_SECRET:?set NAVYR_INTERNAL_SECRET}
+      FRONTEND_URL: ${NAVYR_FRONTEND_URL:-http://localhost:5173}
+      CORS_ALLOWED_ORIGINS: ${NAVYR_CORS_ORIGINS:-http://localhost:5173}
+      SMTP_ENABLED: ${SMTP_ENABLED:-false}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-}
+      TOTP_ENCRYPTION_KEY: ${NAVYR_TOTP_KEY:-}
+      AI_PROVIDER_SECRET_KEY: ${NAVYR_AI_PROVIDER_KEY:-}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8081:8081"
+    restart: unless-stopped
+    networks:
+      - navyr
+
+  billing:
+    image: ghcr.io/navyr-io/navyr-billing:${NAVYR_VERSION:-latest}
+    environment:
+      PORT: 8082
+      DATABASE_URL: postgres://${NAVYR_POSTGRES_USER:-navyr}:${NAVYR_POSTGRES_PASSWORD:?set NAVYR_POSTGRES_PASSWORD}@db:5432/${NAVYR_POSTGRES_DB:-navyr}?sslmode=disable
+      # O compose passava DATABASE_URL e o billing a ignorava: sem
+      # BILLING_DB_ENABLED ele sobe em memória, e uso e auditoria somem a cada
+      # reinício. O chart já define as duas assim; era o compose que divergia.
+      # Ver navyr-io/navyr-billing#5.
+      BILLING_DB_ENABLED: "true"
+      # Sem fallback, de propósito. Ele existia para o billing não morrer se o
+      # banco demorasse — problema que aguardarBanco resolveu: hoje ele espera,
+      # não morre. Com fallback ligado, um Postgres indisponível na partida faz
+      # o serviço subir SAUDÁVEL e sem persistência, avisando só num Warning.
+      # Não subir é sinal que aparece; subir sem persistência não é.
+      #
+      # E o próprio código já recusa BILLING_DB_FALLBACK=true quando
+      # APP_ENV=production. A decisão estava tomada; faltava valer aqui.
+      BILLING_DB_FALLBACK: "false"
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8082:8082"
+    restart: unless-stopped
+    networks:
+      - navyr
+
+  orchestrator:
+    image: ghcr.io/navyr-io/navyr-orchestrator:${NAVYR_VERSION:-latest}
+    environment:
+      PORT: 8083
+      # Endereço público que o agente disca para abrir o túnel. Vai embutido no
+      # manifesto que o cliente aplica com kubectl. Sem ele, o orquestrador só
+      # deriva para localhost e recusa em qualquer outro host — ver SPEC-010.
+      #
+      # O default aponta o gateway da rede do Docker porque é por ele que um
+      # cluster kind alcança o host; localhost, de dentro do pod, é o próprio pod.
+      NAVYR_PUBLIC_WS_URL: ${NAVYR_PUBLIC_WS_URL:-ws://172.18.0.1:8083}
+      DATABASE_URL: postgres://${NAVYR_POSTGRES_USER:-navyr}:${NAVYR_POSTGRES_PASSWORD:?set NAVYR_POSTGRES_PASSWORD}@db:5432/${NAVYR_POSTGRES_DB:-navyr}?sslmode=disable
+      JWT_SECRET: ${NAVYR_JWT_SECRET:?set NAVYR_JWT_SECRET}
+      INTERNAL_CONTEXT_SIGNING_SECRET: ${NAVYR_INTERNAL_SECRET:?set NAVYR_INTERNAL_SECRET}
+      CLUSTER_CREDENTIAL_ENCRYPTION_KEY: ${NAVYR_CREDENTIAL_KEY:?set NAVYR_CREDENTIAL_KEY}
+      CLUSTER_CREDENTIAL_KEY_ID: ${NAVYR_CREDENTIAL_KEY_ID:-local}
+      WS_EXEC_TICKET_SECRET: ${NAVYR_WS_TICKET_SECRET:?set NAVYR_WS_TICKET_SECRET}
+      CLUSTER_VALIDATION_MODE: ${CLUSTER_VALIDATION_MODE:-real}
+      AUTH_SERVICE_URL: http://auth:8081
+      CORS_ALLOWED_ORIGINS: ${NAVYR_CORS_ORIGINS:-http://localhost:5173}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8083:8083"
+    restart: unless-stopped
+    networks:
+      - navyr
+
+  community:
+    image: ghcr.io/navyr-io/navyr-community:${NAVYR_VERSION:-latest}
+    environment:
+      PORT: 8084
+      DATABASE_URL: postgres://${NAVYR_POSTGRES_USER:-navyr}:${NAVYR_POSTGRES_PASSWORD:?set NAVYR_POSTGRES_PASSWORD}@db:5432/${NAVYR_POSTGRES_DB:-navyr}?sslmode=disable
+      COMMUNITY_SECRETS_KEY: ${COMMUNITY_SECRETS_KEY:?set COMMUNITY_SECRETS_KEY}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8084:8084"
+    restart: unless-stopped
+    networks:
+      - navyr
+
+  # --- GATEWAY ---
+  collector:
+    image: ghcr.io/navyr-io/navyr-collector:${NAVYR_VERSION:-latest}
+    environment:
+      PORT: 8090
+      REDIS_ADDR: redis:6379
+      ORCHESTRATOR_INTERNAL_URL: http://orchestrator:8083
+      INTERNAL_CONTEXT_SIGNING_SECRET: ${NAVYR_INTERNAL_SECRET:?set NAVYR_INTERNAL_SECRET}
+      COLLECTOR_INTERVAL: ${COLLECTOR_INTERVAL:-30s}
+    depends_on:
+      redis:
+        condition: service_healthy
+      orchestrator:
+        condition: service_started
+    ports:
+      - "8090:8090"
+    restart: unless-stopped
+    networks:
+      - navyr
+
+  gateway:
+    image: ghcr.io/navyr-io/navyr-gateway:${NAVYR_VERSION:-latest}
+    environment:
+      PORT: 8080
+      AUTH_SERVICE_URL: http://auth:8081
+      BILLING_SERVICE_URL: http://billing:8082
+      ORCHESTRATOR_SERVICE_URL: http://orchestrator:8083
+      JWT_SECRET: ${NAVYR_JWT_SECRET:?set NAVYR_JWT_SECRET}
+      INTERNAL_CONTEXT_SIGNING_SECRET: ${NAVYR_INTERNAL_SECRET:?set NAVYR_INTERNAL_SECRET}
+      CORS_ALLOWED_ORIGINS: ${NAVYR_CORS_ORIGINS:-http://localhost:5173}
+      RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-false}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      # Sem esta variável o gateway desliga a sessão por cookie e volta para
+      # Bearer — e o frontend não manda mais Bearer desde navyr-frontend#14.
+      # O resultado é login que não funciona, com um Warning como única pista.
+      #
+      # O chart já define REDIS_SESSION_URL; era o compose que divergia, o mesmo
+      # que acontecia com o billing em navyr-io/navyr-billing#5.
+      #
+      # Usa o mesmo Redis do rate limit aqui: em Kubernetes o chart aponta para
+      # uma instância dedicada, com AOF e volume, porque perder sessão é
+      # derrubar todo mundo. Em demonstração, um só basta.
+      REDIS_SESSION_URL: ${REDIS_SESSION_URL:-redis://redis:6379}
+      METRICS_NAMESPACE: navyr
+    depends_on:
+      - auth
+      - billing
+      - orchestrator
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    networks:
+      - navyr
+
+  # --- FRONTEND ---
+  frontend:
+    image: ghcr.io/navyr-io/navyr-frontend:${NAVYR_VERSION:-latest}
+    depends_on:
+      - gateway
+    ports:
+      - "5173:8080"
+    restart: unless-stopped
+    networks:
+      - navyr
+
+networks:
+  navyr:
+    driver: bridge
+
+volumes:
+  postgres_data:

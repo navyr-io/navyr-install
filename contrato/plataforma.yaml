@@ -1,0 +1,305 @@
+# Contrato da plataforma Navyr — descrição única que os empacotamentos consomem.
+#
+# GERADO. Não editar à mão: `python3 tests/contract/gerar_contrato.py`.
+# A catraca `test_contrato_esta_atualizado.py` reprova quando este arquivo e as
+# fontes divergem.
+#
+# Fontes:
+#   variaveis  os.Getenv no código dos serviços — a única fonte que não pode
+#              mentir sobre o que o serviço lê
+#
+#   superficie_configuravel  o subconjunto de `variaveis` que o compose de
+#              referência oferece. É o que TODO empacotamento precisa entregar;
+#              o resto tem default no código e é botão de ajuste
+#   topologia  navyr-deploy/docker-compose.yml — a descrição que roda de fato
+#
+# Quem consome: docker-compose.yml, chart Helm (navyr-helm) e, quando existir,
+# o módulo ECS (navyr-deploy#17). Cada um tem teste que reprova se não cobrir o
+# contrato. Ver ADR 0006 e navyr-helm#6 para o porquê.
+servicos_com_codigo:
+- navyr-gateway
+- navyr-auth
+- navyr-billing
+- navyr-orchestrator
+- navyr-community
+- navyr-collector
+superficie_configuravel:
+- AI_PROVIDER_SECRET_KEY
+- AUTH_EXPOSE_INVITE_TOKEN
+- AUTH_EXPOSE_RESET_TOKEN
+- AUTH_SERVICE_URL
+- BILLING_SERVICE_URL
+- CLUSTER_CREDENTIAL_ENCRYPTION_KEY
+- CLUSTER_CREDENTIAL_KEY_ID
+- CLUSTER_VALIDATION_MODE
+- COLLECTOR_INTERVAL
+- COMMUNITY_SECRETS_KEY
+- CORS_ALLOWED_ORIGINS
+- DATABASE_URL
+- FRONTEND_URL
+- GITHUB_CLIENT_ID
+- GITHUB_CLIENT_SECRET
+- INTERNAL_CONTEXT_SIGNING_SECRET
+- JWT_SECRET
+- METRICS_NAMESPACE
+- NAVYR_PUBLIC_WS_URL
+- ORCHESTRATOR_SERVICE_URL
+- PORT
+- RATE_LIMIT_ENABLED
+- REDIS_SESSION_URL
+- REDIS_URL
+- SMTP_ENABLED
+- SMTP_FROM_EMAIL
+- SMTP_HOST
+- SMTP_PASSWORD
+- SMTP_PORT
+- SMTP_USERNAME
+- TOTP_ENCRYPTION_KEY
+- WS_EXEC_TICKET_SECRET
+variaveis:
+  AGENT_TOKEN_TTL_DAYS:
+  - navyr-orchestrator
+  AIOPS_WORKER_ENABLED:
+  - navyr-orchestrator
+  AIOPS_WORKER_INTERVAL:
+  - navyr-orchestrator
+  AI_ENDPOINT_ALLOWED_HOSTS:
+  - navyr-gateway
+  AI_PROVIDER_SECRET_KEY:
+  - navyr-auth
+  ANOMALY_RESTART_THRESHOLD:
+  - navyr-orchestrator
+  ANOMALY_WORKER_INTERVAL:
+  - navyr-orchestrator
+  APP_ENV:
+  - navyr-auth
+  - navyr-billing
+  - navyr-gateway
+  - navyr-orchestrator
+  AUTH_EXPOSE_INVITE_TOKEN:
+  - navyr-auth
+  AUTH_EXPOSE_RESET_TOKEN:
+  - navyr-auth
+  AUTH_SERVICE_URL:
+  - navyr-gateway
+  - navyr-orchestrator
+  AWS_KMS_KEY_ID:
+  - navyr-orchestrator
+  AWS_REGION:
+  - navyr-gateway
+  - navyr-orchestrator
+  BCRYPT_COST:
+  - navyr-auth
+  BILLING_ENFORCEMENT_MODE:
+  - navyr-gateway
+  BILLING_SERVICE_URL:
+  - navyr-gateway
+  BREAK_GLASS_ENABLED:
+  - navyr-gateway
+  BREAK_GLASS_TOKEN:
+  - navyr-gateway
+  CLUSTER_CREDENTIAL_ENCRYPTION_KEY:
+  - navyr-orchestrator
+  CLUSTER_CREDENTIAL_KEY_ID:
+  - navyr-orchestrator
+  CLUSTER_CREDENTIAL_ROTATION_DAYS:
+  - navyr-orchestrator
+  CLUSTER_VALIDATION_MODE:
+  - navyr-orchestrator
+  COLLECTOR_INTERVAL:
+  - navyr-collector
+  - navyr-orchestrator
+  COMMUNITY_SECRETS_KEY:
+  - navyr-community
+  COMMUNITY_SERVICE_URL:
+  - navyr-gateway
+  CORS_ALLOWED_ORIGINS:
+  - navyr-auth
+  - navyr-gateway
+  - navyr-orchestrator
+  DATABASE_URL:
+  - navyr-auth
+  - navyr-billing
+  - navyr-community
+  - navyr-orchestrator
+  DB_CONNECT_TIMEOUT:
+  - navyr-auth
+  - navyr-billing
+  - navyr-community
+  - navyr-orchestrator
+  FRONTEND_URL:
+  - navyr-auth
+  - navyr-billing
+  GITHUB_CLIENT_ID:
+  - navyr-community
+  GITHUB_CLIENT_SECRET:
+  - navyr-community
+  HEALTH_HISTORY_INTERVAL:
+  - navyr-orchestrator
+  HELM_DRIVER:
+  - navyr-orchestrator
+  HOSTNAME:
+  - navyr-orchestrator
+  INTERNAL_CONTEXT_SIGNING_SECRET:
+  - navyr-auth
+  - navyr-gateway
+  - navyr-orchestrator
+  JWT_SECRET:
+  - navyr-auth
+  - navyr-gateway
+  - navyr-orchestrator
+  KMS_KEY_ID:
+  - navyr-orchestrator
+  KMS_LOCAL_KEY:
+  - navyr-orchestrator
+  KMS_PROVIDER:
+  - navyr-orchestrator
+  LOG_LEVEL:
+  - navyr-auth
+  - navyr-billing
+  - navyr-collector
+  - navyr-community
+  - navyr-gateway
+  - navyr-orchestrator
+  METRICS_BASIC_AUTH_PASS:
+  - navyr-auth
+  - navyr-billing
+  - navyr-community
+  - navyr-gateway
+  - navyr-orchestrator
+  METRICS_BASIC_AUTH_USER:
+  - navyr-auth
+  - navyr-billing
+  - navyr-community
+  - navyr-gateway
+  - navyr-orchestrator
+  METRICS_HISTORY_INTERVAL:
+  - navyr-orchestrator
+  METRICS_NAMESPACE:
+  - navyr-gateway
+  NAVYR_AGENT_IMAGE:
+  - navyr-orchestrator
+  NAVYR_AGENT_PULL_SECRET:
+  - navyr-orchestrator
+  NAVYR_ENABLE_POD_EXEC:
+  - navyr-orchestrator
+  NAVYR_LAB_ORCHESTRATOR_URL:
+  - navyr-orchestrator
+  NAVYR_PUBLIC_WS_URL:
+  - navyr-orchestrator
+  ORCHESTRATOR_SERVICE_URL:
+  - navyr-gateway
+  POLICY_CONTEXT_ENABLED:
+  - navyr-gateway
+  PORT:
+  - navyr-auth
+  - navyr-billing
+  - navyr-gateway
+  - navyr-orchestrator
+  RATE_LIMIT_ENABLED:
+  - navyr-gateway
+  RBAC_DRIFT_JOB_ENABLED:
+  - navyr-orchestrator
+  RBAC_DRIFT_JOB_INTERVAL:
+  - navyr-orchestrator
+  REDIS_SESSION_URL:
+  - navyr-gateway
+  REDIS_URL:
+  - navyr-gateway
+  - navyr-orchestrator
+  SCIM_COUNT_ZERO_LEGACY:
+  - navyr-auth
+  SMTP_ENABLED:
+  - navyr-auth
+  SMTP_FROM_EMAIL:
+  - navyr-auth
+  SMTP_HOST:
+  - navyr-auth
+  SMTP_PASSWORD:
+  - navyr-auth
+  SMTP_PORT:
+  - navyr-auth
+  SMTP_USERNAME:
+  - navyr-auth
+  SSO_ALLOWED_FRONTEND_URLS:
+  - navyr-auth
+  STRIPE_SECRET_KEY:
+  - navyr-billing
+  STRIPE_WEBHOOK_SECRET:
+  - navyr-billing
+  TOTP_ENCRYPTION_KEY:
+  - navyr-auth
+  TRIVY_SCAN_CACHE_TTL_MINUTES:
+  - navyr-orchestrator
+  TRUST_PROXY_HEADERS:
+  - navyr-community
+  - navyr-gateway
+  WEBHOOK_ALLOWED_HOSTS:
+  - navyr-auth
+  WS_EXEC_TICKET_SECRET:
+  - navyr-orchestrator
+topologia:
+  servicos:
+    auth:
+      depends_on:
+      - db
+      portas:
+      - 8081
+      estado: null
+    billing:
+      depends_on:
+      - db
+      portas:
+      - 8082
+      estado: null
+    collector:
+      depends_on:
+      - orchestrator
+      - redis
+      portas:
+      - 8090
+      estado: null
+    community:
+      depends_on:
+      - db
+      portas:
+      - 8084
+      estado: null
+    db:
+      depends_on: []
+      portas:
+      - 5432
+      estado:
+        tipo: postgres
+        gerenciado_aws: RDS
+    frontend:
+      depends_on:
+      - gateway
+      portas:
+      - 8080
+      estado: null
+    gateway:
+      depends_on:
+      - auth
+      - billing
+      - orchestrator
+      portas:
+      - 8080
+      estado: null
+    orchestrator:
+      depends_on:
+      - db
+      portas:
+      - 8083
+      estado: null
+    redis:
+      depends_on: []
+      portas:
+      - 6379
+      estado:
+        tipo: redis
+        gerenciado_aws: ElastiCache
+  volumes:
+  - postgres_data
+  redes:
+  - navyr

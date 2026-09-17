@@ -1,0 +1,43 @@
+name: CI
+
+# Auto-contido de proposito. Este repositorio e PUBLICO, e repositorio publico
+# nao alcanca workflow reutilizavel de repositorio privado -- foi o que quebrou
+# o Release do navyr-docs em 16/09 (navyr-deploy#21). Entao nada aqui chama
+# navyr-io/.github.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  instalador:
+    name: O instalador cobre o contrato
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pyyaml
+
+      - name: docker compose config
+        run: |
+          # Os valores nao sao usados; existem so para a interpolacao resolver.
+          sed 's/^\([A-Z_]*\)=$/\1=ci/' .env.example > .env.ci
+          docker compose --env-file .env.ci config >/dev/null
+          echo "compose valido"
+
+      - name: O compose entrega o que o contrato declara
+        run: python3 tests/compose_cobre_o_contrato.py
+
+      - name: As imagens sao mesmo publicas
+        run: |
+          # O prometido no README e que nada exige credencial. Isto confere.
+          DOCKER_CONFIG=/tmp/vazio docker pull ghcr.io/navyr-io/navyr-gateway:latest >/dev/null
+          echo "pull anonimo funciona"
